@@ -1,12 +1,3 @@
-//create akun.txt
-////username && password
-//-----------------
-//User Login
-////if[user&&pass] berhasil Auth Success, atau gagal Auth Failed
-
-//User Register
-////Print all account (username && password)
-
 #include <stdio.h>
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -14,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <asm-generic/socket.h>
 #define PORT 8080
 
 int opponenthealth;
@@ -23,13 +15,11 @@ struct sockaddr_in address;
 int opt = 1;
 int addrlen = sizeof(address);
 char buffer[1024] = {0};
-struct Akun Acc;
 FILE *listakun;
 pthread_t tid[2];
 pthread_mutex_t lock;	
-
-    
-int player1 = 100, player2 = 100;
+struct Akun Acc;
+struct Player Player_data;
 
 struct Akun
 {
@@ -37,11 +27,20 @@ struct Akun
     char password[50];
 };
 
+struct Player
+{
+    int ready;
+    int health1;
+    int health2;
+};
+
+int msleep(unsigned int tms) {
+  return usleep(tms * 1000);
+}
+
 void* clientthread(void *arg)
 {
 	pthread_t id = pthread_self();
-    pthread_mutex_t lock;
-    
 	if(pthread_equal(id,tid[0])) //thread 1
 	{
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0)
@@ -49,11 +48,6 @@ void* clientthread(void *arg)
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        
-        printf("\n%d\n", new_socket);
-        fflush(stdout);
-        printf("\n%d\n", new_socket2);
-        fflush(stdout);
         main1:;
             memset(buffer, 0, 1024);
             valread = read(new_socket, buffer, 1024);
@@ -63,6 +57,7 @@ void* clientthread(void *arg)
                 memset(buffer, 0, 1024);
                 valread = read(new_socket, buffer, 1024);
                 strcpy(Acc.username, buffer);
+                memset(buffer, 0, 1024);
                 valread = read(new_socket, buffer, 1024);
                 strcpy(Acc.password, buffer);
                 //append data
@@ -74,6 +69,7 @@ void* clientthread(void *arg)
                 while(fread(&Acc,sizeof(Acc),1,listakun)>0)
                 {
                     printf("\nUsername: %12s\t\tPassword: %12s\n",Acc.username,Acc.password);
+                    fflush(stdout);
                 }
                 fclose(listakun);
                 goto main1;
@@ -97,7 +93,7 @@ void* clientthread(void *arg)
                     if(strcmp(user, Acc.username) == 0 && strcmp(pass, Acc.password) == 0)
                     {
                         fclose(listakun);
-                        printf("Auth Success\n");
+                        printf("\nAuth Success\n");
                         fflush(stdout);
                         char *success = "Login Success";
                         send(new_socket, success, strlen(success), 0);
@@ -120,24 +116,33 @@ void* clientthread(void *arg)
                 goto main1;
             }
         find1:;
-            printf("menunggu1");
-            fflush(stdout);
+            memset(buffer, 0, 1024);
             valread = read(new_socket, buffer, 1024);
-            if(strcmp(buffer, "find") == 0 || strcmp(buffer, "Find") == 0 || strcmp(buffer, "FIND") == 0)
+            if(strcmp(buffer, "logout") == 0 || strcmp(buffer, "Logout") == 0 || strcmp(buffer, "LOGOUT") == 0)
             {
-                char *player = "Halo Player 1!";
-                send(new_socket , player , strlen(player) , 0 );
                 memset(buffer, 0, 1024);
+                sleep(1);
+                goto main1;
+            }
+            else if(strcmp(buffer, "find") == 0 || strcmp(buffer, "Find") == 0 || strcmp(buffer, "FIND") == 0)
+            {
+                memset(buffer, 0, 1024);
+                Player_data.health1 = 0;
+                Player_data.health2 = 0;
+                Player_data.ready = Player_data.ready + 1;
                 to1:;
-                    if(new_socket > 0 && new_socket2 > 0)
+                    if(Player_data.ready == 2)
                     {
                         char *start = "Game dimulai, silahkan tap tap secepat mungkin!!";
                         send(new_socket , start , strlen(start) , 0 );
                         memset(buffer, 0, 1024);
+                        Player_data.health1 = Player_data.health1 + 100;
+                        char health1[3];
+                        sleep(1);
                         hit1:;
-                            if (player2 > 0)
+                            if (Player_data.health1 > 0 && Player_data.health2 > 0)
                             {
-                                player2 = player2 - 10;
+                                Player_data.health2 = Player_data.health2 - 10;
                                 char *detected = "detected";
                                 send(new_socket , detected , strlen(detected) , 0 );
                                 miss1:;
@@ -146,9 +151,9 @@ void* clientthread(void *arg)
                                 if (strcmp(buffer, "attack") == 0)
                                 {
                                     memset(buffer, 0, 1024);
-                                    sprintf(buffer, "%d", player1);
-                                    send(new_socket , buffer , strlen(buffer) , 0 );
-                                    memset(buffer, 0, 1024);
+                                    sprintf(health1, "%d", Player_data.health1);
+                                    send(new_socket , health1 , strlen(health1) , 0 );
+                                    msleep(100);
                                     goto hit1;
                                 }
                                 else
@@ -158,14 +163,26 @@ void* clientthread(void *arg)
                                 
                                 goto hit1;
                             }
-                            else if(player2 <= 0)
+                            else if(Player_data.health1 <= 0 || Player_data.health2 <= 0)
                             {
                                 char *reward = "reward";
                                 send(new_socket , reward , strlen(reward) , 0 );
                                 memset(buffer, 0, 1024);
-                                char *rewardo = "p1win";
-                                send(new_socket , rewardo , strlen(rewardo) , 0 );
-                                goto main1;
+                                msleep(100);
+                                if(Player_data.health1 <= 0 && Player_data.health2 > 0)
+                                {
+                                    char *rewardo = "Pertandingan Berakhir, Kamu Kalah";
+                                    send(new_socket , rewardo , strlen(rewardo) , 0 );
+                                    Player_data.ready = Player_data.ready - 1;
+                                    goto find1;
+                                }
+                                else if(Player_data.health2 <= 0 && Player_data.health1 > 0)
+                                {
+                                    char *rewardo = "Pertandingan Berakhir, Kamu Menang";
+                                    send(new_socket , rewardo , strlen(rewardo) , 0 );
+                                    Player_data.ready = Player_data.ready - 1;
+                                    goto find1;
+                                }
                             }
                             else
                             {
@@ -177,10 +194,15 @@ void* clientthread(void *arg)
                         char *wait = "wait";
                         send(new_socket , wait , strlen(wait) , 0 );
                         memset(buffer, 0, 1024);
-                        sleep(3);
+                        sleep(1);
                         goto to1;
                     }
             }
+            else
+            {
+                goto find1;
+            }
+            
         pthread_exit(NULL);
 	}
 
@@ -191,11 +213,6 @@ void* clientthread(void *arg)
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        printf("\n%d\n", new_socket);
-        fflush(stdout);
-        printf("\n%d\n", new_socket2);
-        fflush(stdout);
-
         main2:;
             memset(buffer, 0, 1024);
             valread = read(new_socket2, buffer, 1024);
@@ -205,6 +222,7 @@ void* clientthread(void *arg)
                 memset(buffer, 0, 1024);
                 valread = read(new_socket2, buffer, 1024);
                 strcpy(Acc.username, buffer);
+                memset(buffer, 0, 1024);
                 valread = read(new_socket2, buffer, 1024);
                 strcpy(Acc.password, buffer);
                 //append data
@@ -216,6 +234,7 @@ void* clientthread(void *arg)
                 while(fread(&Acc,sizeof(Acc),1,listakun)>0)
                 {
                     printf("\nUsername: %12s\t\tPassword: %12s\n",Acc.username,Acc.password);
+                    fflush(stdout);
                 }
                 fclose(listakun);
                 goto main2;
@@ -238,7 +257,7 @@ void* clientthread(void *arg)
                     {
                         memset(buffer, 0, 1024);
                         fclose(listakun);
-                        printf("Auth Success\n");
+                        printf("\nAuth Success\n");
                         fflush(stdout);
                         char *success = "Login Success";
                         send(new_socket2, success, strlen(success), 0);
@@ -250,7 +269,7 @@ void* clientthread(void *arg)
                 fflush(stdout);
                 char *failed = "Login Failed";
                 send(new_socket2 , failed , strlen(failed) , 0 );
-                goto main1;
+                goto main2;
             }
             else if(strcmp(buffer, "exit") == 0 || strcmp(buffer, "Exit") == 0 || strcmp(buffer, "EXIT") == 0)
             {
@@ -264,21 +283,31 @@ void* clientthread(void *arg)
         find2:;
             memset(buffer, 0, 1024);
             valread = read(new_socket2, buffer, 1024);
-            if(strcmp(buffer, "find") == 0 || strcmp(buffer, "Find") == 0 || strcmp(buffer, "FIND") == 0)
+            if(strcmp(buffer, "logout") == 0 || strcmp(buffer, "Logout") == 0 || strcmp(buffer, "LOGOUT") == 0)
             {
-                char *player = "Halo Player 2!";
-                send(new_socket2 , player , strlen(player) , 0 );
                 memset(buffer, 0, 1024);
+                sleep(1);
+                goto main2;
+            }
+            else if(strcmp(buffer, "find") == 0 || strcmp(buffer, "Find") == 0 || strcmp(buffer, "FIND") == 0)
+            {
+                memset(buffer, 0, 1024);
+                Player_data.health1 = 0;
+                Player_data.health2 = 0;
+                Player_data.ready = Player_data.ready + 1;
                 to2:;
-                    if(new_socket > 0 && new_socket2 > 0)
+                    if(Player_data.ready == 2)
                     {
                         char *start = "Game dimulai, silahkan tap tap secepat mungkin!!";
                         send(new_socket2 , start , strlen(start) , 0 );
                         memset(buffer, 0, 1024);
+                        Player_data.health2 = Player_data.health2 + 100;
+                        char health2[3];
+                        sleep(1);
                         hit2:;
-                            if (player1 > 0)
+                            if (Player_data.health1 > 0 && Player_data.health2 > 0)
                             {
-                                player1 = player1 - 10;
+                                Player_data.health1 = Player_data.health1 - 10;
                                 char *detected = "detected";
                                 send(new_socket2 , detected , strlen(detected) , 0 );
                                 miss2:;
@@ -287,9 +316,10 @@ void* clientthread(void *arg)
                                 if (strcmp(buffer, "attack") == 0)
                                 {
                                     memset(buffer, 0, 1024);
-                                    sprintf(buffer, "%d", player2);
-                                    send(new_socket2 , buffer , strlen(buffer) , 0 );
-                                    memset(buffer, 0, 1024);
+                                    sprintf(health2, "%d", Player_data.health2);
+                                    send(new_socket2 , health2 , strlen(health2) , 0 );
+                                    msleep(100);
+                                    goto hit2;
                                 }
                                 else
                                 {
@@ -298,14 +328,26 @@ void* clientthread(void *arg)
                                 
                                 goto hit2;
                             }
-                            else if(player1 <= 0)
+                            else if(Player_data.health1 <= 0 || Player_data.health2 <= 0)
                             {
                                 char *reward = "reward";
                                 send(new_socket2 , reward , strlen(reward) , 0 );
                                 memset(buffer, 0, 1024);
-                                char *rewardo = "p1win";
-                                send(new_socket2 , rewardo , strlen(rewardo) , 0 );
-                                goto main2;
+                                msleep(100);
+                                if(Player_data.health1 <= 0 && Player_data.health2 > 0)
+                                {
+                                    char *rewardo = "Pertandingan Berakhir, Kamu Menang";
+                                    send(new_socket2 , rewardo , strlen(rewardo) , 0 );
+                                    Player_data.ready = Player_data.ready - 1;
+                                    goto find2;
+                                }
+                                else if(Player_data.health2 <= 0 && Player_data.health1 > 0)
+                                {
+                                    char *rewardo = "Pertandingan Berakhir, Kamu Kalah";
+                                    send(new_socket2 , rewardo , strlen(rewardo) , 0 );
+                                    Player_data.ready = Player_data.ready - 1;
+                                    goto find2;
+                                }
                             }
                             else
                             {
@@ -317,9 +359,13 @@ void* clientthread(void *arg)
                         char *wait = "wait";
                         send(new_socket2 , wait , strlen(wait) , 0 );
                         memset(buffer, 0, 1024);
-                        sleep(3);
+                        sleep(1);
                         goto to2;
                     }
+            }
+            else
+            {
+                goto find2;
             }
         pthread_exit(NULL);
 	}

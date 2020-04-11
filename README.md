@@ -1042,10 +1042,11 @@ B. OPTION `*` & `-d`
 
 C. OPTION `-f`
 - C1. CHECKING ERROR
+
 ```
   } else if (!strcmp(argv[1], "-f")) {
     if (argc < 3) perror("Error: Missing Arguments");
-  ```
+```
 - C2. CALLING FUNCTION WITH THREADING
   ```
     pthread_t tid[argc-2];

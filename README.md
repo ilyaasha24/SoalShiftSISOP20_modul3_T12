@@ -1200,7 +1200,7 @@ int main() {
   shmdt(mat3);
   shmctl(shmid, IPC_RMID, NULL);
 }
-
+```
 4C.
 - 1. LIBRARY
 ```

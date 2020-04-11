@@ -1145,8 +1145,11 @@ int main() {
 }
 ```
 
+
 4B.
 - 1. LIBRARY
+
+
 ```
 #include <stdio.h>
 #include <pthread.h>

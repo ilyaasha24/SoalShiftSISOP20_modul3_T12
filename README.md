@@ -1039,7 +1039,7 @@ B. OPTION `*` & `-d`
     closedir(d);
     }
 ```
-
+```
 C. OPTION `-f`
 - C1. CHECKING ERROR
 

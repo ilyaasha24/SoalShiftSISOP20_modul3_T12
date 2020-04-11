@@ -1139,7 +1139,7 @@ int main() {
   }
   ```
 - OPTIONAL
-  ```
+```
   // shmdt(mat3);
   // shmctl(shmid, IPC_RMID, NULL);
 }

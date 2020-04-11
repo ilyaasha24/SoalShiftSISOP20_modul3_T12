@@ -29,7 +29,6 @@ void *mv(void *pass) {
 }
 int main(int argc, char *argv[]) {
   if (argc < 2) perror("Error: Missing Arguments");
-  pthread_t tid[100];
   if (!strcmp(argv[1], "*") || !strcmp(argv[1], "-d")) {
     DIR *d;
     struct dirent *dir;

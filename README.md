@@ -1204,7 +1204,7 @@ int main() {
   shmctl(shmid, IPC_RMID, NULL);
 }
 ```
-
+```
 
 4C.
 - 1. LIBRARY
